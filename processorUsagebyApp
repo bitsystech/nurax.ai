@@ -1,0 +1,80 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace ProcessMonitor
+{
+    class Program
+    {
+        private const string LogFilePath = @"C:\Path\To\Your\ProcessLog.txt";
+
+        static async Task Main(string[] args)
+        {
+            Console.WriteLine("Process Monitor Started");
+
+            // Ensure the log file exists
+            if (!File.Exists(LogFilePath))
+            {
+                File.Create(LogFilePath).Dispose();
+            }
+
+            while (true)
+            {
+                // Log process information
+                LogProcessInfo();
+
+                // Wait for 5 minutes (300,000 milliseconds) before logging again
+                await Task.Delay(TimeSpan.FromMinutes(5));
+            }
+        }
+
+        static void LogProcessInfo()
+        {
+            using (StreamWriter sw = new StreamWriter(LogFilePath, true))
+            {
+                var processes = Process.GetProcesses();
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                
+                sw.WriteLine($"Timestamp: {timestamp}");
+                
+                var processInfos = processes
+                    .Select(p => new
+                    {
+                        ProcessName = p.ProcessName,
+                        CpuUsage = GetCpuUsage(p)
+                    })
+                    .OrderByDescending(p => p.CpuUsage)
+                    .ToList();
+
+                foreach (var process in processInfos)
+                {
+                    sw.WriteLine($"{process.ProcessName}: CPU Usage: {process.CpuUsage:F2}%");
+                }
+                
+                sw.WriteLine(); // Add a blank line for readability
+            }
+        }
+
+        static float GetCpuUsage(Process process)
+        {
+            try
+            {
+                using (PerformanceCounter pc = new PerformanceCounter("Process", "% Processor Time", process.ProcessName, true))
+                {
+                    // Retrieve CPU usage for the process
+                    pc.NextValue(); // Call this once to initialize
+                    Thread.Sleep(1000); // Wait for a second
+                    return pc.NextValue() / Environment.ProcessorCount;
+                }
+            }
+            catch (Exception)
+            {
+                // Handle cases where the process might exit before the CPU usage is read
+                return 0;
+            }
+        }
+    }
+}

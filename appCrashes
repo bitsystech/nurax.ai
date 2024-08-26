@@ -1,0 +1,105 @@
+// NOTE THAT THIS IS ASSUMING 1000 and 1001 as code. We need to investigate more on crashing code. This is doable, other apps are logging it. 
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+
+namespace ApplicationCrashLogger
+{
+    class Program
+    {
+        private const string LogFilePath = @"C:\Path\To\Your\CrashLog.txt";
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Fetching and Logging Application Crashes...");
+
+            // Ensure the log file exists
+            if (!File.Exists(LogFilePath))
+            {
+                File.Create(LogFilePath).Dispose();
+            }
+
+            // Fetch and log crashes
+            LogApplicationCrashes();
+
+            Console.WriteLine("Crash logging completed.");
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
+
+        static void LogApplicationCrashes()
+        {
+            try
+            {
+                var crashEvents = GetCrashEvents();
+
+                var crashCounts = crashEvents
+                    .GroupBy(e => e.ProcessName)
+                    .Select(g => new
+                    {
+                        ProcessName = g.Key,
+                        Count = g.Count()
+                    })
+                    .OrderByDescending(p => p.Count)
+                    .ToList();
+
+                using (StreamWriter sw = new StreamWriter(LogFilePath, true))
+                {
+                    foreach (var crash in crashCounts)
+                    {
+                        sw.WriteLine($"{DateTime.Now}: Application '{crash.ProcessName}' crashed {crash.Count} times");
+                        Console.WriteLine($"Application '{crash.ProcessName}' crashed {crash.Count} times");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error logging crashes: {ex.Message}");
+            }
+        }
+
+        static List<CrashEvent> GetCrashEvents()
+        {
+            var crashEvents = new List<CrashEvent>();
+
+            // Access the Application event log
+            using (EventLog eventLog = new EventLog("Application"))
+            {
+                foreach (EventLogEntry entry in eventLog.Entries)
+                {
+                    // Filter for application crash events (Event IDs 1000 and 1001 are common)
+                    if (entry.Source == "Application Error" && (entry.InstanceId == 1000 || entry.InstanceId == 1001))
+                    {
+                        var message = entry.Message;
+                        var processName = ExtractProcessNameFromMessage(message);
+
+                        crashEvents.Add(new CrashEvent
+                        {
+                            ProcessName = processName,
+                            Time = entry.TimeGenerated
+                        });
+                    }
+                }
+            }
+
+            return crashEvents;
+        }
+
+        static string ExtractProcessNameFromMessage(string message)
+        {
+            // Example extraction logic, customize based on actual log message format
+            var lines = message.Split('\n');
+            var processLine = lines.FirstOrDefault(line => line.Contains("Faulting application name"));
+            return processLine?.Split(':')[1].Trim() ?? "Unknown";
+        }
+
+        class CrashEvent
+        {
+            public string ProcessName { get; set; }
+            public DateTime Time { get; set; }
+        }
+    }
+}

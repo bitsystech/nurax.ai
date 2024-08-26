@@ -1,0 +1,58 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+
+namespace SystemPerformanceMetrics
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("System Performance Metrics");
+
+            // Create performance counters
+            using (var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total"))
+            using (var memoryCounter = new PerformanceCounter("Memory", "Available MBytes"))
+            using (var diskCounter = new PerformanceCounter("LogicalDisk", "% Free Space", "_Total"))
+            {
+                while (true)
+                {
+                    // Retrieve performance metrics
+                    float cpuUsage = cpuCounter.NextValue();
+                    float availableMemory = memoryCounter.NextValue();
+                    float freeDiskSpace = diskCounter.NextValue();
+
+                    // Wait a short time for the counters to update
+                    Thread.Sleep(1000);
+
+                    // Update CPU usage
+                    cpuUsage = cpuCounter.NextValue();
+
+                    // Display metrics
+                    Console.Clear();
+                    Console.WriteLine($"CPU Usage: {cpuUsage:F2}%");
+                    Console.WriteLine($"Available Memory: {availableMemory:F2} MB");
+                    Console.WriteLine($"Free Disk Space: {freeDiskSpace:F2}%");
+
+                    // Log metrics to a file (optional)
+                    LogMetrics(cpuUsage, availableMemory, freeDiskSpace);
+
+                    // Refresh every 5 seconds
+                    Thread.Sleep(5000);
+                }
+            }
+        }
+
+        static void LogMetrics(float cpuUsage, float availableMemory, float freeDiskSpace)
+        {
+            string logFilePath = @"C:\Path\To\Your\PerformanceMetricsLog.txt";
+
+            using (StreamWriter sw = new StreamWriter(logFilePath, true))
+            {
+                sw.WriteLine($"{DateTime.Now}: CPU Usage: {cpuUsage:F2}%, Available Memory: {availableMemory:F2} MB, Free Disk Space: {freeDiskSpace:F2}%");
+            }
+        }
+    }
+}

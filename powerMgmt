@@ -1,0 +1,66 @@
+dotnet add package System.Management
+using System;
+using System.Management;
+
+namespace PowerManagementInfo
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Power Management Information");
+
+            // Get Battery Information
+            GetBatteryInfo();
+
+            // Get Power States Information
+            GetPowerStatesInfo();
+
+            Console.WriteLine("\nPress any key to exit...");
+            Console.ReadKey();
+        }
+
+        static void GetBatteryInfo()
+        {
+            try
+            {
+                Console.WriteLine("\nBattery Information:");
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_Battery"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        Console.WriteLine($"- Battery Name: {obj["Name"]}");
+                        Console.WriteLine($"  Battery Status: {obj["BatteryStatus"]}");
+                        Console.WriteLine($"  Estimated Charge Remaining: {obj["EstimatedChargeRemaining"]}%");
+                        Console.WriteLine($"  Design Capacity: {obj["DesignCapacity"]} mWh");
+                        Console.WriteLine($"  Full Charge Capacity: {obj["FullChargeCapacity"]} mWh");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving battery information: {ex.Message}");
+            }
+        }
+
+        static void GetPowerStatesInfo()
+        {
+            try
+            {
+                Console.WriteLine("\nPower States Information:");
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_ComputerSystem"))
+                {
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        Console.WriteLine($"- Power Supply Status: {(obj["PowerSupplyStatus"] ?? "N/A")}");
+                        Console.WriteLine($"- System's Power State: {obj["PowerState"]}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving power states information: {ex.Message}");
+            }
+        }
+    }
+}

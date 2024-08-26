@@ -1,0 +1,59 @@
+using System;
+using System.IO;
+using System.Management;
+
+namespace BootTimeLogger
+{
+    class Program
+    {
+        private const string LogFilePath = @"C:\Path\To\Your\BootTimeLog.txt";
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Logging System Boot Time...");
+
+            // Ensure the log file exists
+            if (!File.Exists(LogFilePath))
+            {
+                File.Create(LogFilePath).Dispose();
+            }
+
+            // Log the last boot time
+            LogLastBootTime();
+
+            Console.WriteLine("Boot time logged successfully.");
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
+
+        static void LogLastBootTime()
+        {
+            try
+            {
+                // Create a ManagementObjectSearcher object to query the WMI data
+                using (var searcher = new ManagementObjectSearcher("SELECT LastBootUpTime FROM Win32_OperatingSystem"))
+                {
+                    // Execute the query and get the results
+                    foreach (ManagementObject obj in searcher.Get())
+                    {
+                        // Retrieve the LastBootUpTime property
+                        DateTime lastBootTime = ManagementDateTimeConverter.ToDateTime(obj["LastBootUpTime"].ToString());
+
+                        // Write the last boot time to the log file
+                        using (StreamWriter sw = new StreamWriter(LogFilePath, true))
+                        {
+                            sw.WriteLine($"Last Boot Time: {lastBootTime}");
+                        }
+
+                        // Display the last boot time
+                        Console.WriteLine($"Last Boot Time: {lastBootTime}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+    }
+}

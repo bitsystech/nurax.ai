@@ -1,0 +1,77 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+
+namespace LoginLogoutTracker
+{
+    class Program
+    {
+        private const string LogFilePath = @"C:\Path\To\Your\LogFile.txt";
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Login and Logout Tracker");
+
+            // Ensure the log file exists
+            if (!File.Exists(LogFilePath))
+            {
+                File.Create(LogFilePath).Dispose();
+            }
+
+            // Start a new thread to simulate login and logout events
+            new Thread(SimulateEvents).Start();
+
+            // Continuously display the latest login and logout dates
+            while (true)
+            {
+                DisplayLatestLoginsAndLogouts();
+                Thread.Sleep(5000); // Refresh every 5 seconds
+            }
+        }
+
+        static void SimulateEvents()
+        {
+            Random random = new Random();
+            while (true)
+            {
+                // Simulate a login event
+                LogEvent("LOGIN");
+                Thread.Sleep(random.Next(5000, 15000)); // Random delay between 5 and 15 seconds
+
+                // Simulate a logout event
+                LogEvent("LOGOUT");
+                Thread.Sleep(random.Next(5000, 15000)); // Random delay between 5 and 15 seconds
+            }
+        }
+
+        static void LogEvent(string eventType)
+        {
+            using (StreamWriter sw = new StreamWriter(LogFilePath, true))
+            {
+                sw.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {eventType}");
+            }
+        }
+
+        static void DisplayLatestLoginsAndLogouts()
+        {
+            string[] lines = File.ReadAllLines(LogFilePath);
+
+            var logins = lines
+                .Where(line => line.Contains("LOGIN"))
+                .Select(line => DateTime.Parse(line.Substring(0, 19)))
+                .OrderByDescending(date => date)
+                .FirstOrDefault();
+
+            var logouts = lines
+                .Where(line => line.Contains("LOGOUT"))
+                .Select(line => DateTime.Parse(line.Substring(0, 19)))
+                .OrderByDescending(date => date)
+                .FirstOrDefault();
+
+            Console.Clear();
+            Console.WriteLine($"Latest LOGIN: {logins}");
+            Console.WriteLine($"Latest LOGOUT: {logouts}");
+        }
+    }
+}

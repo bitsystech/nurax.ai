@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading;
+
+namespace ApplicationUsageTracker
+{
+    class Program
+    {
+        // Import user32.dll to interact with Windows API
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern int GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Tracking application usage...");
+
+            // Dictionary to hold application usage data
+            Dictionary<string, (DateTime startTime, TimeSpan totalTime)> appUsage = new Dictionary<string, (DateTime, TimeSpan)>();
+
+            string lastApp = null;
+            DateTime lastAppStartTime = DateTime.Now;
+
+            while (true)
+            {
+                // Get the handle of the currently active window
+                IntPtr hwnd = GetForegroundWindow();
+                int processId;
+                GetWindowThreadProcessId(hwnd, out processId);
+
+                // Get the process associated with the active window
+                Process process = Process.GetProcessById(processId);
+                string appName = process.ProcessName;
+
+                // If the application has changed, log the previous app's usage
+                if (appName != lastApp)
+                {
+                    if (!string.IsNullOrEmpty(lastApp))
+                    {
+                        TimeSpan timeSpent = DateTime.Now - lastAppStartTime;
+                        if (appUsage.ContainsKey(lastApp))
+                        {
+                            appUsage[lastApp] = (appUsage[lastApp].startTime, appUsage[lastApp].totalTime + timeSpent);
+                        }
+                        else
+                        {
+                            appUsage[lastApp] = (lastAppStartTime, timeSpent);
+                        }
+                    }
+
+                    // Update to the new active application
+                    lastApp = appName;
+                    lastAppStartTime = DateTime.Now;
+                }
+
+                // Periodically display the usage report (every 10 seconds)
+                if (DateTime.Now.Second % 10 == 0)
+                {
+                    Console.Clear();
+                    Console.WriteLine("Application Usage Report:");
+                    foreach (var app in appUsage)
+                    {
+                        Console.WriteLine($"{app.Key}: Started at {app.Value.startTime}, Total Active Time: {app.Value.totalTime}");
+                    }
+                }
+
+                // Wait for 1 second before checking again
+                Thread.Sleep(1000);
+            }
+        }
+    }
+}

@@ -1,42 +1,55 @@
+dotnet add package Microsoft.Extensions.Hosting.WindowsServices
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace ApplicationUsageTracker
 {
-    class Program
+    public class Program
     {
-        // Import user32.dll to interact with Windows API
+        public static void Main(string[] args)
+        {
+            CreateHostBuilder(args).Build().Run();
+        }
+
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .UseWindowsService()  // Runs as a Windows Service
+                .ConfigureServices((hostContext, services) =>
+                {
+                    services.AddHostedService<Worker>();
+                });
+    }
+
+    public class Worker : BackgroundService
+    {
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
 
         [DllImport("user32.dll")]
         private static extern int GetWindowThreadProcessId(IntPtr hWnd, out int processId);
 
-        static void Main(string[] args)
+        private readonly Dictionary<string, (DateTime startTime, TimeSpan totalTime)> appUsage = new Dictionary<string, (DateTime, TimeSpan)>();
+        private string lastApp = null;
+        private DateTime lastAppStartTime = DateTime.Now;
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            Console.WriteLine("Tracking application usage...");
-
-            // Dictionary to hold application usage data
-            Dictionary<string, (DateTime startTime, TimeSpan totalTime)> appUsage = new Dictionary<string, (DateTime, TimeSpan)>();
-
-            string lastApp = null;
-            DateTime lastAppStartTime = DateTime.Now;
-
-            while (true)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                // Get the handle of the currently active window
                 IntPtr hwnd = GetForegroundWindow();
                 int processId;
                 GetWindowThreadProcessId(hwnd, out processId);
 
-                // Get the process associated with the active window
                 Process process = Process.GetProcessById(processId);
                 string appName = process.ProcessName;
 
-                // If the application has changed, log the previous app's usage
                 if (appName != lastApp)
                 {
                     if (!string.IsNullOrEmpty(lastApp))
@@ -52,24 +65,27 @@ namespace ApplicationUsageTracker
                         }
                     }
 
-                    // Update to the new active application
                     lastApp = appName;
                     lastAppStartTime = DateTime.Now;
                 }
 
-                // Periodically display the usage report (every 10 seconds)
+                // Log data every 10 seconds (or adjust the interval as needed)
                 if (DateTime.Now.Second % 10 == 0)
                 {
-                    Console.Clear();
-                    Console.WriteLine("Application Usage Report:");
-                    foreach (var app in appUsage)
-                    {
-                        Console.WriteLine($"{app.Key}: Started at {app.Value.startTime}, Total Active Time: {app.Value.totalTime}");
-                    }
+                    LogApplicationUsage();
                 }
 
-                // Wait for 1 second before checking again
-                Thread.Sleep(1000);
+                await Task.Delay(1000, stoppingToken);
+            }
+        }
+
+        private void LogApplicationUsage()
+        {
+            Console.Clear();
+            Console.WriteLine("Application Usage Report:");
+            foreach (var app in appUsage)
+            {
+                Console.WriteLine($"{app.Key}: Started at {app.Value.startTime}, Total Active Time: {app.Value.totalTime}");
             }
         }
     }

@@ -10,3 +10,6 @@ Some features:
 5. Use the issues reported by the users to train the agent to be better
 6. Device Performance Scores
 7. Dashboard for admins to perform action (at a later stage, the admins will be obsolete)
+8. The first release will have 100 end user issues that will be auto solved or can be done via user input
+9. The Agent can be trained on KB articles for each company and the data of each company will be segmented
+10. Based on consent or client agreement, the common issues can be sent to the server so that the agent gets trained on an issue reported in other company and can solve it before it hits your organisation.
